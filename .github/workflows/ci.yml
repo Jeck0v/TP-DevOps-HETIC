@@ -1,0 +1,104 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Stage 1 : Tests
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+      - run: cd app && npm ci
+      - name: Run tests
+        run: |
+          cd app
+          set -o pipefail
+          npm test 2>&1 | tee test-output.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-output-node-${{ matrix.node-version }}
+          path: app/test-output.txt
+
+  # Stage 2 : Build image Docker (workflow reutilisable)
+  build:
+    needs: test
+    uses: ./.github/workflows/reusable-docker.yml
+    with:
+      image-name: devops-app
+      context: ./app
+
+  # Stage 3 : Scan de securite
+  security-scan:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Scanner les dépendances
+      - name: Scan dependencies
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: 'fs'
+          scan-ref: 'app/'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          format: 'table'
+
+      # Scanner l'image Docker
+      - name: Build image for scanning
+        run: docker build -t devops-app:scan app/
+
+      - name: Scan Docker image
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: 'devops-app:scan'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      # Upload SARIF pour GitHub Security tab
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      # Scanner IaC (Terraform)
+      - name: Scan IaC
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: 'config'
+          scan-ref: 'infra/'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'  # Warning only pour IaC
+
+  # Stage 4a : Deploy staging
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - run: echo "Deploying to staging..."
+
+  # Stage 4b : Deploy production
+  deploy-production:
+    needs: [deploy-staging, security-scan]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - run: echo "Deploying to production..."

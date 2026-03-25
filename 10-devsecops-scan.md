@@ -11,6 +11,8 @@ Intégrer la sécurité dans le pipeline CI/CD : scanner les images Docker, les 
 # Installer Trivy
 brew install trivy  # macOS
 # ou
+curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.69.3
+# ou
 docker pull aquasec/trivy
 
 # Scanner une image
