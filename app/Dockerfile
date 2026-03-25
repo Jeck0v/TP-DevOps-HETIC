@@ -1,4 +1,4 @@
-FROM node:20-alpine AS deps
+FROM node:25-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -7,7 +7,7 @@ FROM deps AS test
 COPY . .
 RUN npm test
 
-FROM node:20-alpine AS production
+FROM node:25-alpine AS production
 
 RUN addgroup -g 1001 appgroup && \
     adduser -u 1001 -G appgroup -s /bin/sh -D appuser
