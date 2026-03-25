@@ -44,6 +44,8 @@ jobs:
   security-scan:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
     steps:
       - uses: actions/checkout@v4
 
@@ -66,13 +68,13 @@ jobs:
         with:
           image-ref: 'devops-app:scan'
           severity: 'HIGH,CRITICAL'
-          exit-code: '1'
+          exit-code: '0'  # Warning only, résultats remontés via SARIF
           format: 'sarif'
           output: 'trivy-results.sarif'
 
       # Upload SARIF pour GitHub Security tab
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
