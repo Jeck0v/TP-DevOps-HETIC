@@ -1,0 +1,46 @@
+---
+- name: Configuration de base des serveurs
+  hosts: all
+  become: true
+  vars:
+    packages:
+      - curl
+      - wget
+      - vim
+      - htop
+      - net-tools
+
+  tasks:
+    - name: Mettre à jour le cache apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Installer les paquets de base
+      apt:
+        name: "{{ packages }}"
+        state: present
+
+    - name: Créer le répertoire d'application
+      file:
+        path: /opt/app
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copier le fichier de configuration
+      copy:
+        content: |
+          # Configuration de l'application
+          APP_ENV=production
+          APP_LOG_LEVEL=info
+          APP_PORT=3000
+        dest: /opt/app/.env
+        mode: '0600'
+
+    - name: Afficher les infos système
+      debug:
+        msg: |
+          Hostname: {{ ansible_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}

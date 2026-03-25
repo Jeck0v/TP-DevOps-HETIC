@@ -1,0 +1,24 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'default'
+  routes:
+    - matchers:
+        - severity="critical"
+      receiver: 'critical'
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://webhook-mock:5001/webhook'
+        send_resolved: true
+
+  - name: 'critical'
+    webhook_configs:
+      - url: 'http://webhook-mock:5001/webhook'
+        send_resolved: true

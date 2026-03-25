@@ -1,0 +1,4 @@
+---
+app_env: production
+app_log_level: info
+app_port: 3000
